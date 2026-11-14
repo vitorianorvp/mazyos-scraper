@@ -24,13 +24,40 @@
         selected: null,     // job selecionado
         places: [],
         filter: 'all',
-        view: 'map'
+        view: 'map',
+        preset: null,       // id do preset de parceiro ativo
+        hidden: [],         // lista "não contatar": { key, phone, title, date }
+        hiddenOpen: false
     };
+
+    // Parceiros B2B para a Celi (Maceió-AL), em ordem de prioridade.
+    var PRESETS = [
+        { id: 'construtoras', nome: 'Construtoras e incorporadoras de MCMV', termos: ['construtora', 'incorporadora', 'construtora minha casa minha vida'], why: 'Têm estoque de imóveis MCMV para vender.' },
+        { id: 'correspondentes', nome: 'Correspondentes bancários da Caixa', termos: ['correspondente bancário caixa', 'correspondente caixa habitação'], why: 'Parceiro-chave: aprovação de crédito.' },
+        { id: 'empresas', nome: 'Empresas com muitos funcionários de renda média-baixa', termos: ['indústria', 'supermercado', 'call center', 'hospital'], why: 'O RH pode indicar funcionários (leads em volume).' },
+        { id: 'contadores', nome: 'Contadores de MEI e pequenos negócios', termos: ['contabilidade', 'contador MEI'], why: 'Ajudam a comprovar renda informal.' },
+        { id: 'administradoras', nome: 'Administradoras de condomínio e imobiliárias de aluguel', termos: ['administradora de condomínio', 'imobiliária aluguel'], why: 'Inquilino que pode virar comprador.' },
+        { id: 'igrejas', nome: 'Igrejas e associações de bairro', termos: ['igreja', 'associação de moradores'], why: 'Indicação de confiança na comunidade.' },
+        { id: 'arquitetos', nome: 'Arquitetos', termos: ['arquiteto'], why: 'Indicam clientes que estão construindo ou reformando.', low: true },
+        { id: 'advogados', nome: 'Advogados de inventário', termos: ['advogado inventário'], why: 'Clientes com imóvel de herança para vender ou regularizar.', low: true }
+    ];
+
+    // Bairros de Maceió. loc/km: só para "Maceió inteira" e região metropolitana (raio sugerido).
+    var BAIRROS = [
+        { nome: 'Benedito Bentes', mcmv: true },
+        { nome: 'Cidade Universitária', mcmv: true },
+        { nome: 'Rio Novo', mcmv: true },
+        { nome: 'Santos Dumont', mcmv: true },
+        { nome: 'Antares', mcmv: true },
+        { nome: 'Santa Lúcia', mcmv: true },
+        { nome: 'Maceió inteira', loc: 'Maceió - AL', km: 12 },
+        { nome: 'Região metropolitana de Maceió', loc: 'Região metropolitana de Maceió - AL', km: 30 }
+    ];
 
     // ---------- Mapa ----------
 
     var map = L.map('map', { zoomControl: false, attributionControl: true })
-        .setView([-23.5505, -46.6333], 12);
+        .setView([-9.6658, -35.7353], 12); // centro de Maceió-AL
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.attributionControl.setPrefix('Leaflet');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -113,6 +140,27 @@
 
     function rating(n) { return n ? n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : ''; }
     function int(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+
+    function norm(s) { return String(s || '').trim().toLowerCase(); }
+
+    // Segmento da busca: compara o termo de cada keyword ("termo em local") com os presets.
+    function presetForJob(job) {
+        var kws = (job && job.Data && job.Data.keywords) || [];
+        for (var i = 0; i < PRESETS.length; i++) {
+            for (var k = 0; k < kws.length; k++) {
+                var term = norm(String(kws[k]).split(' em ')[0]);
+                if (PRESETS[i].termos.some(function (t) { return norm(t) === term; })) return PRESETS[i];
+            }
+        }
+        return null;
+    }
+
+    // Bairro da busca (primeira parte do local, depois de " em "): "Benedito Bentes".
+    function jobBairro(job) {
+        var kw = job && job.Data && job.Data.keywords && job.Data.keywords[0];
+        var parts = String(kw || '').split(' em ');
+        return parts.length > 1 ? parts.slice(1).join(' em ').split(',')[0].trim() : '';
+    }
 
     function dateBR(iso) {
         var d = new Date(iso);
@@ -223,6 +271,67 @@
         }
         geoTimer = setTimeout(function () { geocode(v); }, 650);
     });
+
+    // ---------- Presets de parceiro e bairros ----------
+
+    function qTerms() {
+        return $('q').value.split(',').map(norm).filter(Boolean);
+    }
+
+    // O preset fica ativo só enquanto os termos do campo batem com os dele.
+    function syncPreset() {
+        var cur = qTerms().sort().join('|');
+        var found = PRESETS.filter(function (p) {
+            return p.termos.map(norm).sort().join('|') === cur;
+        })[0];
+        state.preset = found ? found.id : null;
+        Array.prototype.forEach.call($('presets').children, function (b) {
+            b.classList.toggle('on', b.getAttribute('data-preset') === state.preset);
+        });
+        $('presetWhy').textContent = found ? 'Por que é parceiro: ' + found.why : '';
+    }
+
+    $('presets').innerHTML = PRESETS.map(function (p, i) {
+        return '<button type="button" class="' + (p.low ? 'low' : '') + '" data-preset="' + p.id + '">' +
+            (p.low ? '' : (i + 1) + '. ') + esc(p.nome) + '</button>';
+    }).join('');
+
+    $('presets').addEventListener('click', function (e) {
+        var b = e.target.closest('button');
+        if (!b) return;
+        var p = PRESETS.filter(function (x) { return x.id === b.getAttribute('data-preset'); })[0];
+        $('q').value = p.termos.join(', ');
+        syncPreset();
+    });
+    $('q').addEventListener('input', syncPreset);
+
+    $('bairros').innerHTML = BAIRROS.map(function (b, i) {
+        return '<button type="button" data-b="' + i + '">' + esc(b.nome) +
+            (b.mcmv ? ' <span class="tag mcmv">MCMV</span>' : '') + '</button>';
+    }).join('');
+
+    function syncBairros() {
+        var v = norm($('loc').value);
+        Array.prototype.forEach.call($('bairros').children, function (btn) {
+            var b = BAIRROS[Number(btn.getAttribute('data-b'))];
+            btn.classList.toggle('on', v === norm(b.loc || b.nome + ', Maceió - AL'));
+        });
+    }
+
+    $('bairros').addEventListener('click', function (e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        var b = BAIRROS[Number(btn.getAttribute('data-b'))];
+        $('loc').value = b.loc || b.nome + ', Maceió - AL';
+        var km = b.km || 5; // bairro sem km: volta a 5 km, sem herdar os 12 de Maceió inteira
+        state.radiusKm = km;
+        $('radius').value = km;
+        updateRange();
+        syncBairros();
+        clearTimeout(geoTimer);
+        geocode($('loc').value);
+    });
+    $('loc').addEventListener('input', syncBairros);
 
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -338,6 +447,8 @@
                 meta.push(st);
                 if (j.Status === 'ok' && typeof state.counts[j.ID] === 'number') meta.push('<b>' + state.counts[j.ID] + '</b> empresas');
             }
+            var seg = presetForJob(j);
+            if (seg) meta.push('<span class="seg-tag">' + esc(seg.nome) + '</span>');
             meta.push(dateBR(j.Date));
             if (j.Data && j.Data.email) meta.push('com e-mails');
             var conf = pendingDelete === j.ID;
@@ -408,6 +519,88 @@
 
     function placeKey(p) { return p.link || (p.title + p.latitude + p.longitude); }
 
+    // ---------- Não contatar ----------
+
+    // Telefone sem DDI/máscara, para reconhecer a mesma empresa em buscas diferentes.
+    function phoneKey(phone) {
+        var d = digits(phone);
+        if (d.indexOf('55') === 0 && d.length > 11) d = d.slice(2);
+        return d;
+    }
+
+    function isHidden(p) {
+        var k = placeKey(p), ph = phoneKey(p.phone);
+        return state.hidden.some(function (h) { return h.key === k || (ph && h.phone === ph); });
+    }
+
+    function visiblePlaces() { return state.places.filter(function (p) { return !isHidden(p); }); }
+
+    function saveHidden() {
+        return fetch('/api/v1/nao-contatar', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(state.hidden)
+        }).then(function (r) { if (!r.ok) throw new Error(); })
+            .catch(function () { toast('Não consegui salvar a lista "não contatar".'); });
+    }
+
+    function loadHidden() {
+        return fetch('/api/v1/nao-contatar')
+            .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function (list) { state.hidden = list || []; refreshPlaces(); })
+            .catch(function () { toast('Não consegui carregar a lista "não contatar". Ela pode estar incompleta.'); });
+    }
+
+    function refreshPlaces() {
+        markers.clearLayers();
+        markerByKey = {};
+        addMarkers(state.places);
+        renderLive();
+        renderBoard();
+    }
+
+    function hidePlace(p) {
+        state.hidden.push({ key: placeKey(p), phone: phoneKey(p.phone), title: p.title, date: new Date().toISOString() });
+        map.closePopup();
+        refreshPlaces();
+        saveHidden();
+        toast(p.title + ' saiu da lista (não contatar)');
+    }
+
+    function unhide(i) {
+        state.hidden.splice(i, 1);
+        refreshPlaces();
+        saveHidden();
+    }
+
+    function renderHidden() {
+        var n = state.hidden.length;
+        $('hiddenBar').hidden = !n;
+        $('hiddenToggle').textContent = n + (n === 1 ? ' oculta' : ' ocultas') + ' (não contatar) · ' + (state.hiddenOpen ? 'esconder lista' : 'ver lista');
+        $('hiddenList').hidden = !state.hiddenOpen || !n;
+        $('hiddenList').innerHTML = state.hidden.map(function (h, i) {
+            return '<div><span>' + esc(h.title) + '</span><button type="button" class="nc-btn" data-undo="' + i + '">Desfazer</button></div>';
+        }).join('');
+    }
+
+    $('hiddenToggle').addEventListener('click', function () {
+        state.hiddenOpen = !state.hiddenOpen;
+        renderHidden();
+    });
+    $('hiddenList').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-undo]');
+        if (b) unhide(Number(b.getAttribute('data-undo')));
+    });
+
+    // Botão do popup do mapa (o HTML do popup é criado fora do fluxo normal).
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-nc]');
+        if (!b) return;
+        var k = b.getAttribute('data-nc');
+        var p = state.places.filter(function (x) { return placeKey(x) === k; })[0];
+        if (p) hidePlace(p);
+    });
+
     function popupHtml(p) {
         var wa = whatsapp(p.phone);
         var links = [];
@@ -419,6 +612,7 @@
         if (p.website) links.push('<a href="' + esc(p.website) + '" target="_blank" rel="noopener">' + ICON.globe + esc(domain(p.website)) + '</a>');
         if (p.emails) links.push('<a href="mailto:' + esc(p.emails.split(',')[0]) + '">' + ICON.mail + esc(p.emails.split(',')[0]) + '</a>');
         if (p.link) links.push('<a href="' + esc(p.link) + '" target="_blank" rel="noopener">' + ICON.pin + 'Abrir no Google Maps</a>');
+        links.push('<button type="button" class="nc-btn" data-nc="' + esc(placeKey(p)) + '">Não contatar</button>');
         return '<div class="pop-title">' + esc(p.title) + '</div>' +
             '<div class="pop-cat">' + esc([p.category, p.borough].filter(Boolean).join(' · ')) + '</div>' +
             (siteKind(p.website) === 'none' ? '<div style="margin-top:8px"><span class="tag dark">Sem site</span></div>' : '') +
@@ -430,7 +624,7 @@
         var c = state.selected ? jobCenter(state.selected) : null;
         list.forEach(function (p) {
             var key = placeKey(p);
-            if (markerByKey[key]) return;
+            if (markerByKey[key] || isHidden(p)) return;
             var out = c && distKm(c.lat, c.lon, p.latitude, p.longitude) > c.km;
             var m = L.marker([p.latitude, p.longitude], {
                 icon: L.divIcon({ className: '', html: '<div class="pin' + (out ? ' out' : '') + '"></div>', iconSize: [14, 14], iconAnchor: [7, 7] })
@@ -469,7 +663,7 @@
         var running = job.Status === 'working' || job.Status === 'pending';
         $('livebar').hidden = state.view !== 'map';
         $('liveDot').className = 'live-dot' + (running ? ' run' : '');
-        var n = state.places.length;
+        var n = visiblePlaces().length;
         $('liveText').innerHTML = running
             ? (job.Status === 'pending' ? 'Na fila, já começa' : 'Buscando: <b>' + n + '</b> empresas até agora')
             : '<b>' + n + '</b> empresas em ' + esc(job.Name);
@@ -480,7 +674,7 @@
 
     function filtered() {
         var txt = $('filterText').value.trim().toLowerCase();
-        return state.places.filter(function (p) {
+        return visiblePlaces().filter(function (p) {
             var k = siteKind(p.website);
             if (state.filter === 'nosite' && k !== 'none') return false;
             if (state.filter === 'social' && k !== 'social') return false;
@@ -497,10 +691,12 @@
         $('boardMain').hidden = !job;
         if (!job) return;
 
-        var all = state.places;
+        renderHidden();
+        var all = visiblePlaces();
         var running = job.Status === 'working' || job.Status === 'pending';
+        var seg = presetForJob(job);
         $('boardTitle').textContent = job.Name;
-        $('boardMeta').textContent = (running ? 'Buscando agora · ' : '') + dateBR(job.Date) + ' · ' + (job.Data.keywords || []).join(', ');
+        $('boardMeta').textContent = (running ? 'Buscando agora · ' : '') + (seg ? seg.nome + ' · ' : '') + dateBR(job.Date) + ' · ' + (job.Data.keywords || []).join(', ');
 
         var rated = all.filter(function (p) { return p.review_rating; });
         var avg = rated.length ? rated.reduce(function (s, p) { return s + p.review_rating; }, 0) / rated.length : 0;
@@ -522,7 +718,7 @@
         var rows = filtered();
         $('download').textContent = 'Baixar planilha (' + rows.length + ')';
         if (!rows.length) {
-            $('rows').innerHTML = '<tr><td colspan="6" class="t-empty">' +
+            $('rows').innerHTML = '<tr><td colspan="7" class="t-empty">' +
                 (all.length ? 'Nenhuma empresa nesse filtro.' : (running ? 'As empresas aparecem aqui conforme a busca anda.' : 'Essa busca não trouxe empresas.')) +
                 '</td></tr>';
             return;
@@ -543,6 +739,7 @@
                 '<td>' + phone + '</td>' +
                 '<td>' + site + '</td>' +
                 '<td>' + (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener" title="Abrir no Google Maps">' + ICON.arrow + '</a>' : '') + '</td>' +
+                '<td><button type="button" class="nc-btn" data-nc-row="' + i + '">Não contatar</button></td>' +
                 '</tr>';
         }).join('');
         renderBoard.rows = rows;
@@ -554,6 +751,8 @@
     // Clicar numa linha leva pro pin no mapa.
     $('rows').addEventListener('click', function (e) {
         if (e.target.closest('a')) return;
+        var nc = e.target.closest('[data-nc-row]');
+        if (nc) { hidePlace(renderBoard.rows[Number(nc.getAttribute('data-nc-row'))]); return; }
         var tr = e.target.closest('tr[data-i]');
         if (!tr) return;
         var p = renderBoard.rows[Number(tr.getAttribute('data-i'))];
@@ -590,24 +789,28 @@
     // Planilha no padrão do Excel brasileiro: ponto e vírgula, vírgula decimal e BOM.
     function download(rows) {
         if (!state.selected || !rows.length) return;
-        var head = ['Empresa', 'Categoria', 'Telefone', 'WhatsApp', 'Site', 'E-mail', 'Nota', 'Avaliações', 'Bairro', 'Cidade', 'Endereço', 'Google Maps'];
+        rows = rows.filter(function (p) { return !isHidden(p); });
+        if (!rows.length) return;
+        var seg = presetForJob(state.selected);
+        var bairroBusca = jobBairro(state.selected);
+        var head = ['Nome', 'Segmento', 'Bairro', 'Telefone', 'WhatsApp', 'Site', 'Nota', 'Nº avaliações', 'Endereço', 'Google Maps', 'Por que é parceiro'];
         var lines = [head.join(';')].concat(rows.map(function (p) {
             var wa = whatsapp(p.phone);
-            return [p.title, p.category, p.phone, wa ? 'https://wa.me/' + wa : '', p.website, p.emails,
-                p.review_rating ? rating(p.review_rating) : '', p.review_count || '', p.borough, p.city, p.address, p.link]
+            return [p.title, seg ? seg.nome : '', p.borough || bairroBusca, p.phone, wa ? 'https://wa.me/' + wa : '', p.website,
+                p.review_rating ? rating(p.review_rating) : '', p.review_count || '', p.address, p.link, seg ? seg.why : '']
                 .map(csvCell).join(';');
         }));
         var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'mazyos-' + slug(state.selected.Name) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.download = 'parceiros-mcmv-' + slug(state.selected.Name) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
         toast(rows.length + ' empresas exportadas');
     }
 
     $('download').addEventListener('click', function () { download(filtered()); });
-    $('liveDownload').addEventListener('click', function () { download(state.places); });
+    $('liveDownload').addEventListener('click', function () { download(visiblePlaces()); });
 
     $('copyPhones').addEventListener('click', function () {
         var phones = filtered().map(function (p) { return p.phone; }).filter(Boolean);
@@ -619,8 +822,17 @@
 
     // ---------- Ciclo ----------
 
+    // Local padrão: "Maceió - AL" (igual ao botão "Maceió inteira"), com coordenadas fixas
+    // para não depender do geocode na abertura. Digitar ou escolher outro bairro substitui.
+    state.radiusKm = 12;
+    $('radius').value = 12;
+    state.geo = { lat: -9.6658, lon: -35.7353, label: 'Maceió, Alagoas, Brasil' };
+    drawCircle(state.geo.lat, state.geo.lon, state.radiusKm, false);
+    syncBairros();
+
     updateQtyDesc();
     updateRange();
+    loadHidden();
     loadJobs();
 
     setInterval(function () {

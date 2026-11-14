@@ -542,3 +542,38 @@ td a:hover { text-decoration: underline; }
     .livebar, .board { left: 16px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Versão para parceiros MCMV */
+.presets { margin: 0 0 14px; }
+#presets { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+#presets button {
+    text-align: left;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 8px 11px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+#presets button:hover { border-color: #c9c9c9; }
+#presets button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+#presets button.low { font-size: 12px; color: var(--muted); padding: 5px 11px; }
+#presets button.low.on { color: #fff; }
+.preset-why { margin-top: 8px; font-size: 12px; color: var(--ink-2); min-height: 16px; }
+.bairros { margin: 8px 0 0; }
+.bairros button { padding: 4px 9px; font-size: 12px; }
+.tag.mcmv { background: #eef7ee; border-color: #cfe5cf; color: #2c5e2c; }
+.seg-tag { color: var(--ink-2); font-weight: 500; }
+.nc-btn {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.nc-btn:hover { border-color: #c9c9c9; color: var(--ink); }
+.pop-links .nc-btn { align-self: flex-start; margin-top: 4px; }
+.hidden-bar { margin: 0 0 12px; font-size: 13px; }
+#hiddenList { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+#hiddenList div { display: flex; justify-content: space-between; align-items: center; gap: 10px; }

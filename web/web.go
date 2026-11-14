@@ -146,6 +146,8 @@ func New(svc *Service, addr string) (*Server, error) {
 		ans.apiGetPlaces(w, r)
 	})
 
+	mux.HandleFunc("/api/v1/nao-contatar", ans.apiNaoContatar)
+
 	handler := securityHeaders(mux)
 	ans.srv.Handler = handler
 
