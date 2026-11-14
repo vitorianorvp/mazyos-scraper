@@ -57,7 +57,7 @@
     // ---------- Mapa ----------
 
     var map = L.map('map', { zoomControl: false, attributionControl: true })
-        .setView([-23.5505, -46.6333], 12);
+        .setView([-9.6658, -35.7353], 12); // centro de Maceió-AL
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.attributionControl.setPrefix('Leaflet');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -323,11 +323,10 @@
         if (!btn) return;
         var b = BAIRROS[Number(btn.getAttribute('data-b'))];
         $('loc').value = b.loc || b.nome + ', Maceió - AL';
-        if (b.km) {
-            state.radiusKm = b.km;
-            $('radius').value = b.km;
-            updateRange();
-        }
+        var km = b.km || 5; // bairro sem km: volta a 5 km, sem herdar os 12 de Maceió inteira
+        state.radiusKm = km;
+        $('radius').value = km;
+        updateRange();
         syncBairros();
         clearTimeout(geoTimer);
         geocode($('loc').value);
@@ -822,6 +821,14 @@
     });
 
     // ---------- Ciclo ----------
+
+    // Local padrão: "Maceió - AL" (igual ao botão "Maceió inteira"), com coordenadas fixas
+    // para não depender do geocode na abertura. Digitar ou escolher outro bairro substitui.
+    state.radiusKm = 12;
+    $('radius').value = 12;
+    state.geo = { lat: -9.6658, lon: -35.7353, label: 'Maceió, Alagoas, Brasil' };
+    drawCircle(state.geo.lat, state.geo.lon, state.radiusKm, false);
+    syncBairros();
 
     updateQtyDesc();
     updateRange();
