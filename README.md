@@ -56,6 +56,17 @@ O filtro mais útil pra quem vende site, tráfego ou automação? **Sem site.** 
 
 ---
 
+## Versão para parceiros MCMV (Maceió)
+
+Esta versão ajuda a Celi, corretora em Maceió-AL, a achar **parceiros** (empresas que podem indicar clientes do Minha Casa Minha Vida), não clientes finais.
+
+- **Parceiros MCMV:** botões no topo do painel, em ordem de prioridade (construtoras, correspondentes da Caixa, empresas com muitos funcionários, contadores de MEI, administradoras e imobiliárias de aluguel, igrejas e associações; arquitetos e advogados de inventário por último). Um clique preenche o campo de busca e mostra "por que é parceiro".
+- **Bairros:** Benedito Bentes, Cidade Universitária, Rio Novo, Santos Dumont, Antares e Santa Lúcia (marcados MCMV), mais "Maceió inteira" (raio de 12 km) e "Região metropolitana de Maceió" (30 km). O clique preenche o campo "Onde?" e acha o local no mapa.
+- **Planilha:** o botão "Baixar planilha" gera `parceiros-mcmv-<busca>-<data>.csv` (abre direto no Excel) com Nome, Segmento, Bairro, Telefone, WhatsApp, Site, Nota, Nº avaliações, Endereço, Google Maps e Por que é parceiro.
+- **Não contatar:** o botão "Não contatar" (no mapa e na tabela) tira a empresa de todas as buscas, atuais e futuras, do mapa, das contas, dos telefones copiados e da planilha. O painel mostra "N ocultas" com a lista e o "Desfazer". A lista fica no arquivo `nao-contatar.json`, na pasta de dados do programa.
+
+Lembretes: o programa **não envia mensagem nenhuma**. Os links de WhatsApp só abrem a conversa quando a pessoa clica, e a mensagem é escrita por ela. Não faça disparo em massa. Pela LGPD, se identifique, diga onde achou o contato e tire da lista quem pedir (use o "Não contatar").
+
 ## Como funciona por dentro
 
 Ele não usa a API oficial do Google Maps. Por isso não precisa de chave, de cartão de crédito nem paga por consulta.

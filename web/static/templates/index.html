@@ -30,6 +30,13 @@
         </header>
 
         <div class="panel-body">
+            <section class="presets">
+                <div class="row-title">Parceiros MCMV</div>
+                <div class="row-desc">Um clique preenche a busca. Em ordem de prioridade.</div>
+                <div id="presets"></div>
+                <div class="preset-why" id="presetWhy"></div>
+            </section>
+
             <section class="box search">
                 <label class="field">
                     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -42,6 +49,7 @@
                     <span class="spin" id="locSpin"></span>
                 </label>
             </section>
+            <div class="chips bairros" id="bairros"></div>
             <p class="hint" id="locHint">Ex.: <b>dentista</b> em <b>Batel, Curitiba</b>. Várias buscas? Separe por vírgula.</p>
 
             <section class="box settings">
@@ -138,6 +146,10 @@
                 </div>
             </div>
             <div class="stats" id="stats"></div>
+            <div class="hidden-bar" id="hiddenBar" hidden>
+                <button type="button" class="ghost" id="hiddenToggle"></button>
+                <div id="hiddenList" hidden></div>
+            </div>
             <div class="board-tools">
                 <div class="chips" id="filters">
                     <button type="button" data-f="all" class="on">Todas</button>
@@ -160,6 +172,7 @@
                             <th class="num">Nota</th>
                             <th>Telefone</th>
                             <th>Site</th>
+                            <th></th>
                             <th></th>
                         </tr>
                     </thead>
